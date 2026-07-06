@@ -19,6 +19,7 @@ let
     compose
     run
     traceOf
+    deferred
     ;
 
   mkChan =
@@ -51,6 +52,12 @@ let
     h = "h1";
     aspect = "x";
   }; # same (entity,scope)
+  dupC = contribHost {
+    channel = ch;
+    value = [ "d" ];
+    h = "h1";
+    aspect = "x";
+  }; # same (entity,scope) — a THIRD occurrence of the identity key
   distinct = contribHost {
     channel = ch;
     value = [ "c" ];
@@ -99,6 +106,51 @@ let
     contribs = [
       duHost
       duUser
+    ];
+  };
+
+  # keep = "last" over THREE identity-key duplicates: the last (dupC) survives; the two earlier
+  # occurrences are dropped. Exercises the 3+-duplicate path (a second drop under keep=last must not
+  # dereference the removed earlier survivor).
+  keepLast = runWith {
+    dedup = {
+      key = "identity";
+      keep = "last";
+    };
+    contribs = [
+      dupA
+      dupB
+      dupC
+    ];
+  };
+
+  # keep = "last" with a CUSTOM key that collapses three DISTINCT producers to one key. The survivor
+  # is the last producer (hC); every drop's `kept` provenance must name that last survivor, not the
+  # first — the per-drop provenance L7 requires.
+  keepLastCustom = runWith {
+    dedup = {
+      key = view: builtins.head view.value;
+      keep = "last";
+    };
+    contribs = [
+      (contribHost {
+        channel = ch;
+        value = [ "k" ];
+        h = "hA";
+        aspect = "1";
+      })
+      (contribHost {
+        channel = ch;
+        value = [ "k" ];
+        h = "hB";
+        aspect = "2";
+      })
+      (contribHost {
+        channel = ch;
+        value = [ "k" ];
+        h = "hC";
+        aspect = "3";
+      })
     ];
   };
 in
@@ -188,6 +240,73 @@ in
           "p"
         ).c.values;
       expected = [ "k" ];
+    };
+    # keep=last over three identity duplicates: the last occurrence survives (no crash on the 3rd).
+    test-keep-last-survivor = {
+      expr = (keepLast.at "p").c.values;
+      expected = [ "d" ];
+    };
+    # both earlier occurrences are recorded as drops.
+    test-keep-last-drops-recorded = {
+      expr =
+        let
+          t = traceOf {
+            outputs = keepLast;
+            at = "p";
+            channel = ch;
+          };
+        in
+        builtins.length t.deduped;
+      expected = 2;
+    };
+    # every drop's `kept` names the true (last) survivor — not the first occurrence (L7 per-drop
+    # provenance). The custom key collapses three distinct producers, so the survivor is identifiable.
+    test-keep-last-kept-is-survivor = {
+      expr =
+        let
+          t = traceOf {
+            outputs = keepLastCustom;
+            at = "p";
+            channel = ch;
+          };
+        in
+        builtins.map (d: d.kept.producer.entity.id_hash) t.deduped;
+      expected = [
+        "h:host:hC"
+        "h:host:hC"
+      ];
+    };
+    # custom key touching a deferred contribution's .value ⇒ E6 (the poisoned-thunk path through the
+    # dedup key function; forced via the trace, which computes keys but never folds values).
+    test-custom-key-deferred-e6 = {
+      expr =
+        (builtins.tryEval (
+          builtins.deepSeq (traceOf {
+            outputs = runWith {
+              dedup = {
+                key = view: builtins.head view.value;
+                keep = "first";
+              };
+              contribs = [
+                (contribHost {
+                  channel = ch;
+                  value = deferred ({ config }: [ config.x ]);
+                  h = "hA";
+                  aspect = "1";
+                })
+                (contribHost {
+                  channel = ch;
+                  value = deferred ({ config }: [ config.y ]);
+                  h = "hB";
+                  aspect = "2";
+                })
+              ];
+            };
+            at = "p";
+            channel = ch;
+          }) true
+        )).success;
+      expected = false;
     };
   };
 }

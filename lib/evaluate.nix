@@ -281,64 +281,76 @@ in
               key = keyOf (elemAt full i);
               i = i;
             }) (length full);
-            step =
-              acc: e:
-              let
-                dup = builtins.elem e.key acc.seen;
-                keptFor = head (filter (x: x.key == e.key) acc.kept);
-              in
-              if !dup then
-                acc
-                // {
-                  seen = acc.seen ++ [ e.key ];
-                  kept = acc.kept ++ [ e ];
-                  out = acc.out ++ [ e.c ];
-                }
-              else if keep == "error" then
-                throw (
-                  errors.e5 {
-                    channel = ch.name;
-                    key = e.key;
-                    kept = keptFor.c.producer;
-                    dropped = e.c.producer;
-                  }
-                )
-              else if keep == "last" then
-                # keep the last occurrence in place; earlier survivor becomes a drop.
-                acc
-                // {
-                  out = map (o: if keyOf o == e.key then null else o) acc.out ++ [ e.c ];
-                  drops = acc.drops ++ [
-                    {
-                      key = e.key;
-                      kept = e.c.provenance.base;
-                      dropped = [ keptFor.c.provenance.base ];
-                    }
-                  ];
-                }
-              else
-                # keep = "first": drop this later occurrence.
-                acc
-                // {
-                  drops = acc.drops ++ [
-                    {
-                      key = e.key;
-                      kept = keptFor.c.provenance.base;
-                      dropped = [ e.c.provenance.base ];
-                    }
-                  ];
-                };
-            folded = foldl' step {
-              seen = [ ];
-              kept = [ ];
-              out = [ ];
-              drops = [ ];
-            } indexed;
           in
-          {
-            seq = filter (o: o != null) folded.out;
-            inherit (folded) drops;
-          };
+          if keep == "last" then
+            # keep = "last": the LAST occurrence of each key survives in its own position; every
+            # earlier occurrence becomes a recorded drop whose kept survivor is that last contribution.
+            # Computed directly from the last index per key — no in-place nulling, so a third
+            # occurrence never dereferences a removed slot, and `kept` is always the true survivor
+            # (L7 per-drop provenance, correct for any duplicate multiplicity).
+            let
+              lastIdx = foldl' (m: e: m // { ${e.key} = e.i; }) { } indexed;
+              survives = e: lastIdx.${e.key} == e.i;
+              survivorBaseOf = e: (elemAt full lastIdx.${e.key}).provenance.base;
+            in
+            {
+              seq = map (e: e.c) (filter survives indexed);
+              drops = map (e: {
+                key = e.key;
+                kept = survivorBaseOf e;
+                dropped = [ e.c.provenance.base ];
+              }) (filter (e: !survives e) indexed);
+            }
+          else
+            # keep = "first" | "error": one incremental pass over the pinned order. keep = "first" is
+            # pinned-order stable (the earliest occurrence survives in place); keep = "error" raises E5
+            # on the first duplicate.
+            let
+              step =
+                acc: e:
+                let
+                  dup = builtins.elem e.key acc.seen;
+                  keptFor = head (filter (x: x.key == e.key) acc.kept);
+                in
+                if !dup then
+                  acc
+                  // {
+                    seen = acc.seen ++ [ e.key ];
+                    kept = acc.kept ++ [ e ];
+                    out = acc.out ++ [ e.c ];
+                  }
+                else if keep == "error" then
+                  throw (
+                    errors.e5 {
+                      channel = ch.name;
+                      key = e.key;
+                      kept = keptFor.c.producer;
+                      dropped = e.c.producer;
+                    }
+                  )
+                else
+                  # keep = "first": drop this later occurrence; the earlier survivor is kept.
+                  acc
+                  // {
+                    drops = acc.drops ++ [
+                      {
+                        key = e.key;
+                        kept = keptFor.c.provenance.base;
+                        dropped = [ e.c.provenance.base ];
+                      }
+                    ];
+                  };
+              folded = foldl' step {
+                seen = [ ];
+                kept = [ ];
+                out = [ ];
+                drops = [ ];
+              } indexed;
+            in
+            {
+              seq = folded.out;
+              inherit (folded) drops;
+            };
 
       # base(ch,p): for a declared channel, the contributions attached via contributionsAt enumerated
       # in the traversal pin (self → imports → parent; imports in declaration order — the gen-scope
@@ -374,7 +386,11 @@ in
           position = p;
           sequence = map (c: c.provenance.base) dr.seq;
           deduped = dr.drops;
-          adapted = [ ]; # populated by consume (§2.7); channel-level trace has none
+          # Channel-level trace carries no adapter entries: adaptation is class-relative (§2.6.5) and
+          # occurs only at a consuming class. `traceOf { outputs; at; channel; class; }` recomputes the
+          # `adapted` records for a given consuming class (§4.6, L9 "never silent"); `consume` appends
+          # the matching per-contribution `adapted` provenance hop on the same events.
+          adapted = [ ];
           routedIn = map (edge: {
             inherit (edge) from declIndex;
             via = edge.op;
