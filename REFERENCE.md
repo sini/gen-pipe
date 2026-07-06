@@ -198,12 +198,20 @@ ______________________________________________________________________
 
 ```nix
 provenanceOf = record: <chain>;              # from a contribution OR consumption record (§4.5)
-traceOf      = { outputs, at, channel }: <trace>;   # the per-position, per-channel trace (§4.6)
+traceOf      = { outputs, at, channel,       # the per-position, per-channel trace (§4.6)
+                 class ? null, adapters ? [ ], select ? null }: <trace>;
 ```
 
 `provenanceOf` recovers the full structured chain (base + hops). Bare scalar values carry no
 provenance — recovery goes through the paired record. The trace is the "never silent" law made
 inspectable: every dedup drop and delivery is a record.
+
+Passing a consuming `class` (with an optional `adapters` extension and `select`, mirroring
+`consume`) populates the trace's `adapted` field: one record per cross-class contribution the
+matching `consume` would coerce (§2.6.5). Adaptation is class-relative, so the bare (`class = null`)
+trace carries `adapted = [ ]` — adapter applications appear once a consuming class is named (they are
+also recorded per-contribution as an `adapted` provenance hop by `consume`). Metadata-only: reading a
+trace forces no contribution value.
 
 ______________________________________________________________________
 
@@ -308,7 +316,8 @@ ______________________________________________________________________
 `{ op = "adapted"; from; to; }`.
 
 **Channel trace** (`traceOf`): `{ channel; position; sequence; deduped; adapted; routedIn; }` — every
-dedup drop and inbound delivery recorded.
+dedup drop and inbound delivery recorded; `adapted` is populated when `traceOf` is given a consuming
+`class` (empty for the class-agnostic trace).
 
 **Consumption record** (`__genPipeConsumption`): `{ contribution; class; deferred; resolve = env: value; }`.
 
@@ -372,3 +381,8 @@ Refinements/limitations relative to the component spec (`2026-07-05-gen-pipe-com
 - **Derived-channel base identity** collides for two distinct derivations over the same input+op
   without an explicit `name`; give such channels explicit names (the `declIndex` disambiguates final
   output names, but input references match on the base id).
+- **`traceOf` takes an optional consuming `class`** (plus `adapters` / `select`) to populate the
+  trace's `adapted` field (§4.6). The channel-level trace produced by `run` is class-agnostic, so
+  adapter applications — which are class-relative (§2.6.5) — are recomputed by `traceOf` for the named
+  consuming class rather than stored eagerly; the same events are also recorded per-contribution as
+  `adapted` provenance hops by `consume`.

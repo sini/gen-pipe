@@ -20,6 +20,7 @@ let
     run
     consume
     provenanceOf
+    traceOf
     ;
 
   # The adapter fn receives the RESOLVED value and the contribution's provenance chain (read-only).
@@ -108,6 +109,40 @@ in
     test-adapted-retag = {
       expr = (builtins.elemAt records 1).class.id_hash;
       expected = "cls:nixos";
+    };
+    # the adapter application surfaces as a trace record for the consuming class (never silent, L9):
+    # the hm-tagged contribution is recorded as adapted home-manager → nixos.
+    test-adapted-trace-entry = {
+      expr =
+        let
+          t = traceOf {
+            outputs = outAdapter;
+            at = "p";
+            channel = withAdapter;
+            class = clsNixos;
+          };
+        in
+        builtins.map (a: {
+          from = a.from.id_hash;
+          to = a.to.id_hash;
+        }) t.adapted;
+      expected = [
+        {
+          from = "cls:home-manager";
+          to = "cls:nixos";
+        }
+      ];
+    };
+    # the class-agnostic trace (no consuming class) carries no adapted entries — adaptation is
+    # class-relative (§2.6.5).
+    test-channel-trace-no-adapted = {
+      expr =
+        (traceOf {
+          outputs = outAdapter;
+          at = "p";
+          channel = withAdapter;
+        }).adapted;
+      expected = [ ];
     };
     # without a declared adapter, the cross-class contribution is E2.
     test-e2-no-adapter = {

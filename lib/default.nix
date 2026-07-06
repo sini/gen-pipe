@@ -49,7 +49,10 @@ let
     inherit prelude errors helpers;
     select = selectAdapter;
   };
-  provenance = import ./provenance.nix { inherit prelude; };
+  provenance = import ./provenance.nix {
+    inherit prelude helpers;
+    select = selectAdapter;
+  };
 in
 {
   # ── declaration ──
