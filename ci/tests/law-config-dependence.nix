@@ -85,6 +85,10 @@ let
     f = a: b: a ++ b;
     init = [ ];
   } ch;
+  scanned = scan {
+    f = a: b: a ++ b;
+    init = [ ];
+  } ch;
 
   taintDag = compose [
     ch
@@ -92,6 +96,7 @@ let
     mappedCfg
     filtered
     folded
+    scanned
   ];
   taintOut =
     contribs:
@@ -172,6 +177,33 @@ in
           defer
         ])."c.fold.4".classInvariant;
       expected = [ false ];
+    };
+    # scan (paired with fold in §7): all-invariant inputs + config-free f ⇒ every intermediate
+    # output stays invariant (n inputs ⇒ n flags).
+    test-scan-all-invariant = {
+      expr =
+        (taintOut [
+          (plain "a")
+          (plain "b")
+        ])."c.scan.5".classInvariant;
+      expected = [
+        true
+        true
+      ];
+    };
+    # one per-member (deferred) input taints only the scan prefixes that include it — WITHOUT forcing
+    # its value. The k-th output = fold of the first k inputs, so the flag flips at the prefix that
+    # first admits the deferred contribution.
+    test-scan-one-permember-taints = {
+      expr =
+        (taintOut [
+          (plain "a")
+          defer
+        ])."c.scan.5".classInvariant;
+      expected = [
+        true
+        false
+      ];
     };
   };
 }

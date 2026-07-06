@@ -24,6 +24,10 @@ let
   keepA = channel { name = "keepA"; };
   routed = channel { name = "routed"; };
   teed = channel { name = "teed"; };
+  # route ≡ unary tee equivalence targets (§2.3: route { from; select; to } ≡
+  # tee { from; outputs = [ { inherit select to; } ]; }).
+  routeEq = channel { name = "routeEq"; };
+  teeEq = channel { name = "teeEq"; };
 
   # source: three contributions from distinct entities (so selectors can partition them)
   mk =
@@ -69,6 +73,23 @@ let
     ];
   };
 
+  # the SAME selective delivery expressed as a route and as a unary tee — must produce the identical
+  # sequence at their targets (route is the unary special case of tee, §2.3).
+  rtEq = route {
+    from = src;
+    select = sel.entity (f.host "h1");
+    to = routeEq;
+  };
+  ttEq = tee {
+    from = src;
+    outputs = [
+      {
+        select = sel.entity (f.host "h1");
+        to = teeEq;
+      }
+    ];
+  };
+
   out = run {
     dag = compose [
       src
@@ -80,6 +101,10 @@ let
       scanned
       rt
       tt
+      routeEq
+      teeEq
+      rtEq
+      ttEq
     ];
     inherit traversal;
   };
@@ -134,6 +159,20 @@ in
     test-tee-selective = {
       expr = vals "keepA";
       expected = [ "x3" ];
+    };
+    # route ≡ unary tee: the same { select; to } delivery via route and via a single-output tee lands
+    # the identical contribution sequence at the target channel.
+    test-route-eq-unary-tee = {
+      expr = {
+        route = vals "routeEq";
+        tee = vals "teeEq";
+        equal = vals "routeEq" == vals "teeEq";
+      };
+      expected = {
+        route = [ "x1" ];
+        tee = [ "x1" ];
+        equal = true;
+      };
     };
   };
 }
