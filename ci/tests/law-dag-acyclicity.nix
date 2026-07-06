@@ -25,7 +25,7 @@ let
       B
       (route {
         from = A;
-        select = sel.all;
+        select = sel.star;
         to = B;
       })
     ]).topo;
@@ -36,12 +36,12 @@ let
       B
       (route {
         from = A;
-        select = sel.all;
+        select = sel.star;
         to = B;
       })
       (route {
         from = B;
-        select = sel.all;
+        select = sel.star;
         to = A;
       })
     ]).channels;
@@ -62,7 +62,7 @@ let
       mA
       (route {
         from = mA;
-        select = sel.all;
+        select = sel.star;
         to = A;
       })
     ]).channels;
@@ -94,12 +94,12 @@ in
               jB
               (route {
                 from = jA;
-                select = sel.all;
+                select = sel.star;
                 to = A;
               })
               (route {
                 from = jB;
-                select = sel.all;
+                select = sel.star;
                 to = B;
               })
             ]).channels

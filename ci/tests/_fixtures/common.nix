@@ -14,6 +14,14 @@ rec {
   user = ent "user";
   aspect = ent "aspect";
 
+  # A gen-schema-shaped kind VALUE (an attrset with `kind` + `options`) — what upstream `sel.kind`
+  # takes (it validates `? kind && ? options` and throws on a bare name string). Stub `options` since
+  # gen-pipe never reads them; only the `kind` name reaches the selector.
+  kindVal = k: {
+    kind = k;
+    options = { };
+  };
+
   # ── stub class registry entries ──
   clsNixos = {
     id_hash = "cls:nixos";

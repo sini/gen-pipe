@@ -71,12 +71,12 @@ let
 
   r1 = route {
     from = s1;
-    select = sel.all;
+    select = sel.star;
     to = target;
   };
   r2 = route {
     from = s2;
-    select = sel.all;
+    select = sel.star;
     to = target;
   };
 

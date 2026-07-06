@@ -114,7 +114,7 @@ genPipe = {
 
   provenanceOf = record: <chain>;
   traceOf      = { outputs, at, channel }: <trace>;
-  sel = <gen-select constructors> // { entity; kind; all; };
+  sel = <gen-select's library surface>;       # constructors (entity/kind/star/…) + adapters + matches
 };
 ```
 

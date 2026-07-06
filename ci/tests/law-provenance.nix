@@ -36,7 +36,7 @@ let
   } src;
   rt = route {
     from = src;
-    select = sel.all;
+    select = sel.star;
     to = sink;
   };
 

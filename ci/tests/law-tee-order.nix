@@ -63,7 +63,7 @@ let
     from = src;
     outputs = [
       {
-        select = sel.all;
+        select = sel.star;
         to = teed;
       }
       {

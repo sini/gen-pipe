@@ -61,7 +61,7 @@ let
       (filter (_: true) base)
       (route {
         from = base;
-        select = sel.all;
+        select = sel.star;
         to = sink;
       })
     ];

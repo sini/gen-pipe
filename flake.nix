@@ -6,8 +6,9 @@
   # as flake inputs:
   #   - gen-prelude : foundational combinators (builtins re-exports + vendored toposort).
   #   - gen-select  : routing / consumption predicates (route.select, tee.outputs[].select,
-  #                   consume.select). gen-pipe ships a small view-adapter over `matches`
-  #                   plus the `sel.entity`/`sel.kind` identity constructors (roadmap §8).
+  #                   consume.select). gen-pipe ships only a small view-adapter over `matches`
+  #                   (projecting the __identity/__coords contract); the identity/kind/coord
+  #                   constructors are upstream now (roadmap §8) and re-exported verbatim as `sel`.
   #   - gen-scope   : the TRAVERSAL CONTRACT ONLY — gen-pipe consumes an adapter shaped after
   #                   gen-scope's collectionAttr pin (self → imports → parent, imports in
   #                   declaration order); it never constructs scope graphs. The dependency is

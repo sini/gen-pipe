@@ -26,7 +26,7 @@ let
       deferred
       ;
   };
-  selectAdapter = import ./select.nix { inherit prelude select helpers; };
+  viewAdapter = import ./view.nix { inherit prelude select helpers; };
   operators = import ./operators.nix { inherit prelude channel; };
   compose = import ./compose.nix {
     inherit
@@ -43,15 +43,15 @@ let
       helpers
       deferred
       ;
-    select = selectAdapter;
+    select = viewAdapter;
   };
   consumeMod = import ./consume.nix {
     inherit prelude errors helpers;
-    select = selectAdapter;
+    select = viewAdapter;
   };
   provenance = import ./provenance.nix {
     inherit prelude helpers;
-    select = selectAdapter;
+    select = viewAdapter;
   };
 in
 {
@@ -76,6 +76,8 @@ in
   inherit (consumeMod) consume;
   # ── introspection ──
   inherit (provenance) provenanceOf traceOf;
-  # gen-select selector surface + the roadmap §8 identity constructors (sel.entity/sel.kind).
-  inherit (selectAdapter) sel;
+  # gen-select's full selector surface (constructors + adapters + matches/selectorEq). The
+  # identity/kind/coord constructors are upstream now (roadmap §8); gen-pipe re-exports them and no
+  # longer ships any of its own. Selectors match a contribution through view.nix's projection.
+  sel = select;
 }

@@ -119,13 +119,14 @@ in
       };
       expected = [ [ "U" ] ];
     };
-    # select by kind (sel.kind) — all host-kind producers.
+    # select by kind (sel.kind) — all host-kind producers. Upstream sel.kind takes a kind VALUE
+    # (attrset with `kind` + `options`), matching against the projected __identity.kind.
     test-select-kind = {
       expr = consume {
         outputs = outSel;
         at = "p";
         channel = plain;
-        select = sel.kind "host";
+        select = sel.kind (f.kindVal "host");
         mode = "values";
       };
       expected = [ [ "H" ] ];

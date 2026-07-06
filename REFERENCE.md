@@ -217,20 +217,25 @@ ______________________________________________________________________
 
 ## Selectors
 
-`genPipe.sel` re-exports the gen-select constructors plus the identity constructors:
+`genPipe.sel` **is** gen-select's library surface — the full constructor set plus `matches`,
+`selectorEq`, and `adapters` (gen-pipe adds nothing of its own; the identity/kind/coord constructors
+are upstream, roadmap §8):
 
 ```nix
-sel.entity <registry-entry>   # match a specific entity by identity (id_hash)
-sel.kind   <schema-kind>      # match all entities of a kind
-sel.all                       # = gen-select's star (catch-all)
+sel.entity <registry-entry>                          # match a specific entity by identity (id_hash)
+sel.kind   <schema-kind-value>                        # match all entities of a kind ({ kind; options; })
+sel.star                                              # catch-all (CSS universal selector)
+sel.attrs / sel.and / sel.any / sel.not / sel.when    # the rest of the constructor set
+sel.adapters.product.coord <dim> <registry-entry>     # match one producing-scope coordinate
 ```
 
 A `select` argument is either a gen-select selector value (matched against the contribution view via a
-single-node accessor context) or a plain `view -> bool` predicate. Coordinate selectors match
-`producer.scope`; `sel.entity`/`sel.kind` match `producer.entity`.
-
-> The pinned/published gen-select lacks `sel.entity`/`sel.kind` (roadmap §8); gen-pipe supplies them
-> locally, honoring the identity law, pending the gen-select extension. See [Deviations](#deviations).
+single-node accessor context) or a plain `view -> bool` predicate. gen-pipe projects each contribution
+into gen-select's adapter contract: `sel.entity`/`sel.kind` match the producing entity through a
+reserved `__identity` record (id_hash + kind name), and coordinate selectors match `producer.scope`
+through `__coords`. An identity-blind / kind-blind contribution makes an identity/kind selector
+**throw** (loud, never a silent non-match). Note `sel.kind` takes a schema kind **value**
+(`{ kind; options; }`), not a bare name string.
 
 ______________________________________________________________________
 
@@ -370,8 +375,6 @@ ______________________________________________________________________
 
 Refinements/limitations relative to the component spec (`2026-07-05-gen-pipe-component-spec.md`):
 
-- **`sel.entity` / `sel.kind`** are shipped inside gen-pipe (over gen-select's `attrs`), pending the
-  gen-select §8 extensions in the pinned dependency. Identity-law-honoring (they take entries/kinds).
 - **`producer.classes`** is an accepted field on `contribute`'s producer bundle (the position's class
   bindings), which T2/T4/E7 require — an argument-shape refinement of the §4.2 producer shape.
 - **`channel.init`** is exposed (the §2.1 fold seed `foldl combine init …`), an argument-shape
