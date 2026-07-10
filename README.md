@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/sini/gen-pipe/actions/workflows/ci.yml/badge.svg)](https://github.com/sini/gen-pipe/actions/workflows/ci.yml) [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT) [![Sponsor](https://img.shields.io/badge/Sponsor-%E2%9D%A4-pink?logo=github)](https://github.com/sponsors/sini)
 
-The content-agnostic **dataflow algebra for scoped channels**. A *channel* is a typed, named accumulation lane; its value *at a scope position* is a deterministic fold over the contributions visible from that position under a pinned traversal. Operators (`map`, `filter`, `fold`, `scan`, `route`, `join`, `tee`) connect channels into a **dataflow DAG**, validated at composition time and evaluated demand-driven.
+The content-agnostic **dataflow algebra for scoped channels**. A *channel* is a typed, named accumulation lane; its value *at a scope position* is a deterministic fold over the contributions visible from that position under a pinned traversal. Operators (`map`, `filter`, `fold`, `scan`, `over`, `route`, `join`, `tee`) connect channels into a **dataflow DAG**, validated at composition time and evaluated demand-driven.
 
 gen-pipe supplies three guarantees that den v1's pipe machinery enforced only by convention:
 
@@ -100,10 +100,11 @@ genPipe = {
   contribute = { channel, value, producer, class ? }: <contribution>;
   deferred = fn: <deferredValue>;
 
-  map    = f: <channel>: <channel>;           # or map { f, name ?, type ?, dedup ?, class ? }
+  map    = f: <channel>: <channel>;           # per-element; or map { f, name ?, type ?, dedup ?, class ? }
   filter = p: <channel>: <channel>;
   fold   = { f, init, ... }: <channel>: <channel>;
   scan   = { f, init, ... }: <channel>: <channel>;
+  over   = f: <channel>: <channel>;           # WHOLE-list f : [a] -> [b] (value-demanding); or over { f, ... }
   route  = { from, select, to }: <op>;
   join   = { inputs, combine ?, ... }: <channel>;
   tee    = { from, outputs }: <op>;
@@ -133,5 +134,6 @@ Every law (L1–L13) is a named test group; error content is golden-tested; the 
 - **Kahn (1974), KPN** — *informed-by only*. gen-pipe channels have **multiple writers**, violating Kahn's single-writer condition (the source of KPN determinism). gen-pipe's determinism therefore does **not** come from KPN semantics — it comes from the B5 discipline: pinned canonical traversal + associative-only left fold (HOAG r2 §B5, den ISSUES #10). This caveat is load-bearing.
 - **van Antwerpen et al. (2016), Statix** (via HOAG r2 §B2) — the two-stratum discipline that makes reading an under-construction scope graph sound. gen-pipe realizes the *consumer side* of that condition, not the resolution calculus.
 - **Cheney, Chiticariu & Tan (2009), "Provenance in Databases: Why, How, and Where"** — the provenance chain is lineage/where-provenance-shaped. gen-pipe does not implement the semiring-annotated generality of Green–Karvounarakis–Tannen (2007); the survey is cited, not the semiring framework, to keep the claim honest.
+- **Bird & Meertens (1987), the Bird–Meertens formalism** — *informed-by only*. `map`/`fold`/`scan` are the structured list-recursion operators (each with a fusion law and a value-independent output shape), so their contribution count stays readable without forcing values. `over` (`f : [a] → [b]`) is the unstructured general list function they specialize — the whole-list escape hatch (reverse/take/cross-element rewrite). It carries no fusion law and its output cardinality depends on the values, so it is value-demanding and strict where fold/scan stay lazy.
 
 The producer-class deferral semantics trace to engineering precedent (den v1 PR #623, HOAG r2's `pipe.withConfig` thunk contract), cited as design provenance.

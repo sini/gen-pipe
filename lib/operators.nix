@@ -97,6 +97,26 @@ in
       };
     };
 
+  # `over f` applies `f` to the channel's WHOLE contribution-value list at once (`f : [a] -> [b]`),
+  # re-seeding each element of the result as a fresh contribution (§2.3). map/filter/fold/scan are the
+  # STRUCTURED list operators (Bird–Meertens `map`/catamorphism/`scan` — each carrying a fusion law and
+  # a value-independent output shape); `over` is the UNSTRUCTURED general list function — the escape hatch
+  # for whole-list rewrites (sort, take, reverse, cross-element rewrite) that no structured operator
+  # expresses. It carries no fusion law and, because its OUTPUT CARDINALITY depends on the values, it is
+  # value-demanding and strict where fold/scan stay lazy (see evaluate.nix `overC`). `arg` is the bare
+  # `f` or the §2.3a record form (identity/attributes).
+  over =
+    arg: ch:
+    let
+      r = asRec "f" arg;
+    in
+    mkDerived {
+      op = "over";
+      inputs = [ ch ];
+      rc = r;
+      derive = { inherit (r) f; };
+    };
+
   join =
     r:
     mkDerived {

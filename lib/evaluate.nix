@@ -195,6 +195,35 @@ in
         in
         genList mkOut (length seq);
 
+      overC =
+        ch: d: seq: p:
+        # `f` applied to the WHOLE value list → a new value list; each element becomes a fresh synthetic
+        # contribution at position p (den v1 `for`: `map seed (f (map unwrap values))`). Value-demanding,
+        # like fold/scan — but the E6 guard rides the OUTPUT-LIST thunk, not a per-output value thunk:
+        # `over`'s cardinality is `length (f values)`, so the deferred guard must resolve before ANY output
+        # contribution exists (strict), where fold/scan keep the E6 lazy because their output shape (1 / n)
+        # is value-INDEPENDENT. classInvariant composes exactly as fold's: the whole batch is invariant iff
+        # every input is and `f` reads no config (L13).
+        let
+          classInvariant = all (c: c.classInvariant) seq && configArgsOf d.f == [ ];
+          inputs = map (c: c.provenance.base) seq;
+          outValues = e6IfDeferred "over" ch.name seq (d.f (map (c: c.value) seq));
+        in
+        map (
+          v:
+          synthetic {
+            inherit (ch) name;
+            value = v;
+            inherit classInvariant;
+            position = p;
+            hop = {
+              op = "over";
+              channel = ch.name;
+              inherit inputs;
+            };
+          }
+        ) outValues;
+
       joinC =
         ch: d: p:
         let
@@ -251,6 +280,8 @@ in
           [ (foldC ch d (seqAt inName p) p) ]
         else if d.op == "scan" then
           scanC ch d (seqAt inName p) p
+        else if d.op == "over" then
+          overC ch d (seqAt inName p) p
         else
           joinC ch d p;
 
