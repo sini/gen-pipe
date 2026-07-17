@@ -28,7 +28,7 @@ ______________________________________________________________________
 channel = {
   name,                        # display + internal key (unique within a dag)
   type ? null,                 # { check = v: bool; description ? str; } — duck-typed, gen-types plugs in
-  merge ? "ordered-list",      # discipline; "semilattice-set" reserved + rejected (E10)
+  merge ? "ordered-list",      # discipline; "semilattice-set" = idempotent set-union class (opt-in)
   combine ? (a: b: a ++ b),    # associative-only left fold
   init ? [ ],                  # fold seed (value = foldl combine init seqValues)
   dedup ? null,                # dedup policy record or null = off
@@ -40,8 +40,12 @@ Determinism rests on the traversal pin, not the combine's algebra. The combine m
 it need **not** be commutative or idempotent — swapping a commutative/idempotent combine into an
 ordered-list channel is a correctness regression (it reorders and dedups), not an optimization.
 
-`merge = "semilattice-set"` is **reserved and rejected** (E10) until a real idempotent-set consumer
-exists. Unknown disciplines are E10b.
+`merge = "semilattice-set"` is the **idempotent set-union class** (opt-in): duplicate contribution
+values collapse (dedup by `==`), so re-contributing a present value is a no-op — the join-semilattice
+ACI laws (associativity, commutativity, idempotence; Datafun's fixpoint carrier, the CRDT convergence
+algebra). It is realized as channel-construction defaults (value-keyed first-occurrence dedup on the
+ordered append); the result order is **first-occurrence** (pinned-order stable). A caller may override
+`dedup`. Unknown disciplines are E10b.
 
 ______________________________________________________________________
 
@@ -127,7 +131,7 @@ contribution values:
 
 1. **Acyclicity** (E3) — naming the channel cycle and the operators forming it.
 1. **Reference closure** (E4a) + unique channel names (E4b) — derived names assigned + checked here.
-1. **Discipline validity** (E10/E10b) + dedup policy well-formedness.
+1. **Discipline validity** (E10b — unknown discipline) + dedup policy well-formedness.
 1. **Static class coverage** (E2) — a delivery edge from a class-tagged channel into a channel whose
    `class.expect` differs requires a declared adapter (when statically decidable).
 
@@ -344,7 +348,7 @@ ______________________________________________________________________
 | E7 | Explicit tag not bound at position | `contribute` |
 | E8 | Undeclared deferral (bare config-demanding fn) | `contribute` |
 | E9 | Type-contract violation | consumption (executes post-resolution, per value) |
-| E10/E10b | Reserved/unknown discipline | `channel` construction; re-validated by `compose` |
+| E10b | Unknown discipline (semilattice-set is a real class now) | `channel` construction; re-validated by `compose` |
 | E11 | Deferred in value-mode read with no resolver | `consume` |
 
 Every message names its pinned content fields (golden-tested); exact prose may evolve.

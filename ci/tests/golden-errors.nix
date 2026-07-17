@@ -107,10 +107,6 @@ let
       description = "must be a list";
       inherit producer;
     };
-    e10 = errors.e10 {
-      channel = "http-backends";
-      merge = "semilattice-set";
-    };
     e10b = errors.e10b {
       channel = "http-backends";
       merge = "bogus";
@@ -204,11 +200,8 @@ in
       expr = has "http-backends" m.e9 && has "must be a list" m.e9 && namesProducer m.e9;
       expected = true;
     };
-    # E10 / E10b — channel, discipline, the reservation note (E10).
-    test-e10 = {
-      expr = has "semilattice-set" m.e10 && has "reserved" m.e10 && has "http-backends" m.e10;
-      expected = true;
-    };
+    # E10b — channel + the unknown-discipline note. (E10, the semilattice-set reservation, is retired —
+    # the discipline is now a real merge class, so there is no reserved-throw golden to pin.)
     test-e10b = {
       expr = has "bogus" m.e10b && has "unknown" m.e10b;
       expected = true;

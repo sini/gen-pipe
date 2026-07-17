@@ -128,11 +128,8 @@ rec {
     "gen-pipe[E9]: channel '${channel}' value fails its type contract "
     + "(${if description == null then "<no description>" else description}) for ${prod producer}.";
 
-  # E10 / E10b — reserved / unknown discipline.
-  e10 =
-    { channel, merge }:
-    "gen-pipe[E10]: channel '${channel}' declares reserved discipline '${merge}'; semilattice-set is "
-    + "reserved and rejected until a real idempotent-set consumer exists (HOAG r2 §B5 rule 3).";
+  # E10b — unknown discipline. (E10 — the semilattice-set RESERVED throw — is retired: semilattice-set is
+  # now a real merge class, no longer a reserved sentinel; only an UNKNOWN discipline aborts here.)
   e10b =
     { channel, merge }:
     "gen-pipe[E10b]: channel '${channel}' declares unknown discipline '${merge}'.";
