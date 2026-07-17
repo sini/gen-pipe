@@ -44,8 +44,11 @@ ordered-list channel is a correctness regression (it reorders and dedups), not a
 values collapse (dedup by `==`), so re-contributing a present value is a no-op — the join-semilattice
 ACI laws (associativity, commutativity, idempotence; Datafun's fixpoint carrier, the CRDT convergence
 algebra). It is realized as channel-construction defaults (value-keyed first-occurrence dedup on the
-ordered append); the result order is **first-occurrence** (pinned-order stable). A caller may override
-`dedup`. Unknown disciplines are E10b.
+ordered append); the result order is **first-occurrence** (pinned-order stable). Value equality is by
+the dedup key's **`toJSON` serialization** (the same machinery every dedup key uses): so structural
+values only — `1` and `1.0` do not collapse (distinct JSON), and a function-valued contribution is
+unconvertible and fails. A caller may override `dedup` (an explicit policy wins over the class default).
+Unknown disciplines are E10b.
 
 ______________________________________________________________________
 

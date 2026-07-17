@@ -75,6 +75,44 @@ let
     cA2
   ]);
 
+  # OVERRIDE PRECEDENCE: a semilattice-set channel with an EXPLICIT dedup policy uses the CALLER's policy,
+  # not the class default (value-keyed). Here the caller declares identity dedup (by producer), so two
+  # DISTINCT-value contributions from the SAME producer identity collapse to one (identity keep=first) —
+  # the value-keyed class default would instead keep both (distinct values). The override wins.
+  overrideChan = channel {
+    name = "s";
+    merge = "semilattice-set";
+    dedup = {
+      key = "identity";
+      keep = "first";
+    };
+  };
+  ovA = contribHost {
+    channel = overrideChan;
+    value = [ "a" ];
+    h = "h1";
+    aspect = "same";
+  };
+  ovB = contribHost {
+    channel = overrideChan;
+    value = [ "b" ];
+    h = "h1";
+    aspect = "same";
+  }; # SAME (entity, scope, aspect) ⇒ same identity key as ovA; distinct VALUE
+  overrideFolded =
+    (
+      (run {
+        dag = compose [ overrideChan ];
+        traversal = f.mkTraversal {
+          table.p.s = [
+            ovA
+            ovB
+          ];
+        };
+      }).at
+      "p"
+    ).s.values;
+
   # the SECOND E10 firing point (compose.nix re-validation of a hand-built record): a bare record whose
   # `merge = "semilattice-set"` must compose WITHOUT throwing (both former-throw sites accept the class).
   handBuilt = setChan // {
@@ -113,6 +151,13 @@ in
     test-compose-revalidation-accepts-class = {
       expr = (builtins.tryEval (builtins.deepSeq composeHandBuilt null)).success;
       expected = true;
+    };
+    # OVERRIDE PRECEDENCE: an explicit dedup on a semilattice-set channel WINS over the class default. Two
+    # distinct-value contributions from the same producer identity collapse under the caller's identity
+    # dedup (one survivor, value ["a"]) — the value-keyed class default would have kept both distinct values.
+    test-override-dedup-precedence = {
+      expr = overrideFolded;
+      expected = [ "a" ];
     };
   };
 }
